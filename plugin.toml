@@ -4,7 +4,7 @@ name = "空想增量"
 description = "在插件面板里玩《空想增量》：猫咪可以读取游戏快照并替你排操作。"
 short_description = "Play Kongxiang Incremental inside the plugin panel; the cat can read the snapshot and queue actions."
 keywords = ["游戏", "game", "incremental", "放置", "空想增量", "kongxiang"]
-version = "0.1.1"
+version = "0.1.2"
 entry = "plugin.plugins.kongxiang_incremental:KongxiangPlugin"
 
 [plugin.author]
