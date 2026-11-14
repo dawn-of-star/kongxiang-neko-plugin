@@ -38,6 +38,28 @@ class KongxiangPlugin(NekoPluginBase):
         self._seq = 0
         self._results: deque[dict[str, Any]] = deque(maxlen=64)
 
+    def _enqueue_action(
+        self,
+        action_type: str,
+        action_id: str = "",
+        max_flag: bool = False,
+        reason: str = "",
+    ) -> dict[str, Any]:
+        """把动作放进队列；页面轮询到之后才真正执行。"""
+        self._seq += 1
+        action = {
+            "action_id": f"a{self._seq}",
+            "type": action_type,
+            "payload": {
+                "id": str(action_id or ""),
+                "max": bool(max_flag),
+            },
+            "reason": str(reason or ""),
+            "queued_at": time.time(),
+        }
+        self._actions.append(action)
+        return action
+
     @lifecycle(id="startup")
     async def startup(self, **_):
         ok = False
@@ -76,6 +98,32 @@ class KongxiangPlugin(NekoPluginBase):
         while self._actions and len(items) < max_items:
             items.append(self._actions.popleft())
         return Ok({"actions": items, "pending": len(self._actions)})
+
+    @plugin_entry(
+        id="queue_action",
+        name="排一个动作",
+        description="手动/调试用：把动作放进队列，等游戏页轮询执行。",
+    )
+    async def queue_action(
+        self,
+        type: str,
+        id: str = "",
+        max: bool = False,
+        reason: str = "",
+        **_,
+    ):
+        action_type = str(type or "").strip()
+        if not action_type:
+            return Ok({"queued": False, "error": "type is required"})
+        action = self._enqueue_action(action_type, id, max, reason)
+        return Ok(
+            {
+                "queued": True,
+                "action_id": action["action_id"],
+                "pending": len(self._actions),
+                "note": "页面轮询到之后才会真正执行",
+            }
+        )
 
     @plugin_entry(
         id="report_result",
@@ -161,18 +209,7 @@ class KongxiangPlugin(NekoPluginBase):
         action_type = str(type or "").strip()
         if not action_type:
             return {"queued": False, "error": "type is required"}
-        self._seq += 1
-        action = {
-            "action_id": f"a{self._seq}",
-            "type": action_type,
-            "payload": {
-                "id": str(id or ""),
-                "max": bool(max),
-            },
-            "reason": str(reason or ""),
-            "queued_at": time.time(),
-        }
-        self._actions.append(action)
+        action = self._enqueue_action(action_type, id, max, reason)
         return {
             "queued": True,
             "action_id": action["action_id"],
