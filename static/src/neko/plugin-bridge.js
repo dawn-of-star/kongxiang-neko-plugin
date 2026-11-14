@@ -14,7 +14,6 @@
  *   ② 每 2 秒领一次动作队列，交给 dispatch() 执行，再回报结果。
  */
 
-const PLUGIN_PATH_RE = /^\/plugin\/([^/]+)\/ui(?:\/|$)/;
 const RUN_POLL_MS = 150;
 const RUN_MAX_POLLS = 80;
 
@@ -22,17 +21,24 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 /** 判断当前页面是不是插件静态 UI；是则返回 pluginId，否则 null。 */
 export function detectPluginId(locationLike = window.location) {
-  const match = String(locationLike?.pathname ?? "").match(PLUGIN_PATH_RE);
-  return match ? decodeURIComponent(match[1]) : null;
+  const path = String(locationLike?.pathname ?? "");
+  const parts = path.split("/");
+  // "/plugin/<id>/ui/..." → ["", "plugin", "<id>", "ui", ...]
+  if (parts[1] !== "plugin" || parts[3] !== "ui") return null;
+  return parts[2] ? decodeURIComponent(parts[2]) : null;
 }
 
 /**
  * 创建插件通道。非插件页面返回 null（不影响 standalone / minigame 模式）。
- * @param {{getState:Function, dispatch:Function}} options
+ * @param {{getState?:Function, dispatchActions?:Function}} options
  */
-export function createPluginBridge({ getState, dispatch }) {
+export function createPluginBridge(options = {}) {
   const pluginId = detectPluginId();
   if (!pluginId) return null;
+  const getState = typeof options.getState === "function" ? options.getState : () => null;
+  const dispatchActions = typeof options.dispatchActions === "function"
+    ? options.dispatchActions
+    : () => ({ results: [] });
 
   const base = window.location.origin;
   const state = { syncing: false, polling: false, running: false, lastError: null, lastSyncAt: 0, lastPollAt: 0 };
@@ -118,7 +124,7 @@ export function createPluginBridge({ getState, dispatch }) {
           reason: action?.reason ?? action?.payload?.reason ?? "",
         },
       }));
-      const dispatched = dispatch(batch) ?? { results: [] };
+      const dispatched = dispatchActions(batch) ?? { results: [] };
       const results = Array.isArray(dispatched.results) ? dispatched.results : [];
       for (let i = 0; i < actions.length; i += 1) {
         const action = actions[i];

@@ -145,7 +145,7 @@ const nekoActionApi = {
  */
 const nekoPluginBridge = createPluginBridge({
   getState: () => state,
-  dispatch: (actions) => dispatchNekoActions(state, actions, nekoActionApi),
+  dispatchActions: (actions) => dispatchNekoActions(state, actions, nekoActionApi),
 });
 if (nekoPluginBridge) {
   nekoPluginBridge.start(nekoSnapshotForHost).then(() => {
