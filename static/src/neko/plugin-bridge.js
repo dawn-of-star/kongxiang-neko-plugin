@@ -148,7 +148,7 @@ export function createPluginBridge(options = {}) {
     button.dataset.nekoBound = "1";
     button.hidden = false;
     const syncLabel = () => {
-      button.textContent = document.fullscreenElement ? "⛶ 退出全屏" : "⛶ 全屏";
+      button.textContent = document.fullscreenElement ? "退出全屏" : "全屏";
     };
     button.addEventListener("click", () => {
       if (document.fullscreenElement) document.exitFullscreen?.();
