@@ -14,6 +14,7 @@ permissions:
 jobs:
   release:
     uses: Project-N-E-K-O/N.E.K.O/.github/workflows/plugin-market-release.yml@main
+    secrets: inherit
     with:
       plugin-id: kongxiang_incremental
       neko-repository: Project-N-E-K-O/N.E.K.O
