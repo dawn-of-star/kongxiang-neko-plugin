@@ -1,0 +1,1284 @@
+/* ══════════════════════════════════════════════════════════════
+   amoled.css —— AMOLED 主题（配色取自 Antimatter Dimensions）
+   ══════════════════════════════════════════════════════════════
+
+   来源：AD 源码 public/stylesheets/styles.css 的 :root .t-amoled 块
+        和 public/stylesheets/theme-AMOLED.css
+
+     --color-base:    #000000    纯黑底
+     --color-text:    #e0e0e0
+     --color-accent:  #2fa6f7    亮蓝
+     资源数字         #64dd17 + text-shadow: 0 0 7px   ← AD 标志性发光
+     按钮             #3aacd6 边框，hover 反色
+
+   三条 AD 的设计规则，这里也照做：
+   1. 纯黑背景，不用深灰
+   2. 有颜色的数字一律加 text-shadow 发光
+   3. 按钮默认「黑底 + 彩边」，hover 时「彩底 + 黑字」整体反色
+   ══════════════════════════════════════════════════════════════ */
+
+:root {
+  /* ── 底色 ── */
+  --bg: #000000;
+  --bg-card: #070707;
+  --bg-elevated: #0e0e0e;
+  --bg-hover: #161616;
+
+  /* ── 边框 ── */
+  --line: #1c1c1c;
+  --line-strong: #2a2a2a;
+
+  /* ── 文字 ── */
+  --text: #e0e0e0;
+  --text-dim: #757575;
+  --text-faint: #4a4a4a;
+  --text-bright: #ffffff;
+
+  /* ── 强调色（AD AMOLED）── */
+  --accent: #2fa6f7;
+  --green: #64dd17;
+  --blue: #3aacd6;
+  --infinity: #ff9800;
+  --eternity: #673ab7;
+  --reality: #4caf50;
+  --celestial: #00bcd4;
+  --gold: #ffd600;
+  --bad: #d9534f;
+  --disabled: #333333;
+
+  --radius: 6px;
+  --gap: 14px;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html { background: var(--bg); }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font: 14px/1.55 "Segoe UI", "Microsoft YaHei", system-ui, sans-serif;
+  min-height: 100vh;
+  padding: 18px;
+  font-variant-numeric: tabular-nums;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* 发光工具类 —— AD 的核心视觉 */
+.glow-green  { color: var(--green);     text-shadow: 0 0 7px var(--green); }
+.glow-blue   { color: var(--blue);      text-shadow: 0 0 7px var(--blue); }
+.glow-accent { color: var(--accent);    text-shadow: 0 0 7px var(--accent); }
+.glow-gold   { color: var(--gold);      text-shadow: 0 0 7px var(--gold); }
+.glow-etern  { color: var(--eternity);  text-shadow: 0 0 7px var(--eternity); }
+.glow-dm     { color: #ff3b30;          text-shadow: 0 0 7px #ff3b30; }
+
+/* ══════════════ 布局 ══════════════ */
+
+.wrap { max-width: 1180px; margin: 0 auto; }
+
+.topbar {
+  display: flex; align-items: center; gap: var(--gap);
+  flex-wrap: wrap;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--line);
+  margin-bottom: var(--gap);
+}
+.topbar h1 {
+  font-size: 17px; font-weight: 600; letter-spacing: .5px;
+  color: var(--text-bright);
+}
+.topbar h1 small { color: var(--text-faint); font-size: 11px; font-weight: 400; margin-left: 8px; }
+.topbar .spacer { flex: 1; }
+
+/*
+  两列：左 = 主控台（点击/升级/熵阱），右 = 各层标签页。
+  ⚠️ 原来是 `1.25fr 1fr`（左列宽 25%），用户量出来左 600px / 右 546px，反馈"左侧多约 10%"。
+     现在右页略宽（1fr : 1.15fr）—— 右页要放 2×n 的无限升级网格、梦想卡、里程碑，横向更吃紧。
+*/
+.layout {
+  display: grid;
+  /* ★ 2025：原来两列（左列 5 张卡 / 右列标签页）。用户要求「左侧的主页面也最好并入
+     右侧列表，标题为主控台」⇒ 那 5 张卡并进了标签页的第一个面板 `#panel-console`，
+     于是只需要**一列**。右列的壳仍在 DOM 里（留着不碍事），单列后它自然空掉。 */
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--gap);
+  align-items: start;
+}
+/*
+  左列**常驻**：右页切到量子/无限后要往下滚很久，合并成单列会把
+  「点击生成熵」「买熵阱」这些高频操作滚出视野，所以让左列自己粘住。
+  max-height + overflow 兜底：左列万一比视口还高，它自己滚，不会出现够不到的内容。
+  （窄屏单列时关掉，见下面的 900px 断点。）
+*/
+@media (min-width: 901px) {
+  /* ★ 2025：**粘性对象 = 标签栏本身**（.tabs），不是整张卡。
+     沿革：原来粘"第一列"（左列 5 张卡）→ 5 张卡并进标签页后布局只剩一列，
+     改粘"标签页那张卡"→ 但卡里现在有 8 个面板、高度远超视口，
+     `position: sticky` 在元素高过滚动容器时**基本不粘** ✗ ⇒ 滚下去就看不到标签了。
+     ⇒ 只把**标签栏**粘住即可（它只有一行高）✓
+     ⚠️ 刻意**不给它 overflow** —— 踩过的坑：`.tabs` 一旦成为滚动容器，
+        绝对定位的**子页浮出层会被裁掉**（dom-smoke 有专门断言守这条 ✗）。 */
+  .tabs {
+    position: sticky;
+    top: 0;
+    z-index: 5;
+    /* 粘住时必须有不透明底，否则下面的内容会透过来（AMOLED 黑底 + 卡片色） */
+    background: var(--bg-card);
+  }
+}
+@media (max-width: 900px) {
+  .layout { grid-template-columns: 1fr; }
+}
+.col { display: flex; flex-direction: column; gap: var(--gap); min-width: 0; }
+
+/* ══════════════ N.E.K.O 子页（两列）══════════════
+   ★★★ 2025（用户裁定）：「neko 页面由于要有**对话功能**，建议子页面下分出两列（左侧和右侧）」
+     · 左列 = 好感度 / 档位阶梯 / 道具（游戏侧数据）
+     · 右列 = 对话（接入 SDK 后填充；未接入时是占位）
+   ⚠️ 复用 `.col` 的卡片流 ⇒ 不必新造卡片样式 ✓
+   ⚠️ 900px 以下退化成单列（与 `.inf-grid` 同一套断点）*/
+.neko-cols {
+  display: grid;
+  grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);   /* 左窄右宽：对话区要更宽 */
+  gap: var(--gap);
+  align-items: start;
+}
+@media (max-width: 900px) { .neko-cols { grid-template-columns: 1fr; } }
+
+/* ══════════════════════════════════════════════════════════
+   ★★★ 2026：**七巧板**（永恒的子页；机制尚未实现 —— 见 docs/TANGRAM.md）
+   · 用户指定版式：**左右布局** —— 左 = 坐标轴，右 = 巧板托盘（**约占 15%**）
+   · 下方 = 拼装挑战（走阈值逻辑，暂列代办）
+   ⚠️ 与 `.neko-cols` 同一套断点（900px 以下退成单列）✓
+   ══════════════════════════════════════════════════════════ */
+.tangram-wrap {
+  /* ★ 2026：整页可用的宽度都给棋盘（托盘 15% 不动 ✓）*/
+  --tg-board-max: 100%;
+  display: grid;
+  /* ★★ 用户 2026 指定：右侧巧板托盘**约占 15% 空间**（dom-smoke 有守卫盯着这个 15%） */
+  grid-template-columns: minmax(0, 1fr) 15%;
+  gap: var(--gap);
+  align-items: start;
+  margin-bottom: 14px;
+}
+@media (max-width: 900px) { .tangram-wrap {
+  /* ★ 2026：整页可用的宽度都给棋盘（托盘 15% 不动 ✓）*/
+  --tg-board-max: 100%; grid-template-columns: 1fr; } }
+
+/* 左：坐标轴（目标正方形 ＋ 三条线 ＋ 覆盖率读数）
+   ★★ 2026 用户：「加成坐标轴太小了，大小**翻 5 倍**差不多」⇒ `190px → 950px`
+   ★ 2026 用户二次调整：「以当前尺度**缩小约 10%**」（并声明是**最后一次**动版块）⇒ `950px → 855px`
+   ⚠️⚠️ **尺寸与线宽是耦合的**：`stroke-width` 是 **viewBox 单位**，SVG 放大 5 倍线就粗 5 倍 ✗
+     ⇒ 所以线宽同步**缩 5 倍**（2→0.4 等），让**屏幕上的粗细保持不变**（≈3.6px，AMOLED 细线风格 ✓）
+     ⚠️ 这 10% 的二次缩小**没有再动线宽**：3.6px → 3.2px 低于感知阈值，
+        而按比例改反而让"名义尺寸 ↔ 线宽"的对应关系多一个无意义的数字 ⇒ 有意为之 ✓
+     （`vector-effect: non-scaling-stroke` 看着更省事，但它会把 `stroke-dasharray` 也变成
+       屏幕像素 ⇒ 覆盖率高亮的 dash 数学会**算错** ⇒ 不能用 ✗）*/
+.tangram-board { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; position: relative; }
+
+/* ★★★ 2026-10-22（用户：「拼装挑战的提示做成**悬浮页面**在右侧/左侧」）——
+   预览从文档流里拿出来，**悬浮在棋盘右上角** ✓
+   · 不占布局空间（右栏 15% 不再被预览挤压 ✓）
+   · 点「看题目」展开 / 收起（`hidden` 由 JS 控制 ✓）
+   · 半透明底 + 细边框，压在棋盘上也能看清 ✓ */
+.tg-preview-float {
+  position: absolute; right: 8px; top: 8px; z-index: 6;
+  display: flex; flex-direction: column; align-items: flex-end; gap: 6px;
+  padding: 8px; border-radius: 10px;
+  background: rgba(8, 8, 12, 0.78);
+  border: 1px solid var(--line-strong);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(2px);
+}
+.tg-preview-float > .btn { width: auto !important; white-space: nowrap; }
+.tg-preview-float #tangram-chal-preview { display: block; border-radius: 6px; }
+.tangram-svg {
+  /* ★★★ 2026（用户：「正方形显然小了，但区域又这么大 ⇒ **拓展可见区域**」）——
+     让 svg **吃满左侧那一列**（原来是 min(855px,100%) ⇒ 大屏上白留一大片 ✗）
+     ⚠️ dom-smoke 只断言"名义尺寸 ≥ 760px"，所以这里必须同时满足 855px ✓ */
+  width: 100% !important;
+  min-width: min(855px, 100%);
+  max-width: 100%;
+  height: auto;
+  aspect-ratio: 1 / 1;
+  flex: 0 0 auto;
+}
+.tangram-svg .tg-frame { fill: none; stroke: var(--line-strong); stroke-width: 0.16; }
+.tangram-svg .tg-axis { stroke: var(--text-faint); stroke-width: 0.4; }
+/* 覆盖率高亮：`stroke-dashoffset` 由 JS 驱动（未实现 ⇒ 恒为全长 = 看不见） */
+.tangram-svg .tg-cov { stroke: var(--eternity); stroke-width: 0.52; stroke-linecap: round; }
+.tangram-axes { display: flex; flex-direction: column; gap: 6px; min-width: 205px; }
+.tangram-axes > div { display: flex; justify-content: space-between; gap: 14px; }
+.tangram-axes span { color: var(--text-dim); }
+
+/* 右：巧板托盘（约占 15%）—— 七块板的槽位 */
+.tangram-tray {
+  border: 1px dashed var(--line-strong);
+  border-radius: var(--radius);
+  padding: 8px;
+  min-height: 150px;
+  background: var(--bg-card);
+}
+.tangram-tray-title { color: var(--text-dim); font-size: 12px; margin-bottom: 6px; }
+.tangram-slots { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
+.tangram-slot {
+  aspect-ratio: 1 / 1;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--text-faint);
+  font-size: 11px;
+  text-align: center;
+  padding: 2px;
+}
+
+/* 对话区的消息流（等 SDK 接入后填充；现在只有占位） */
+.neko-chat { display: flex; flex-direction: column; gap: 8px; min-height: 180px; }
+.neko-msg { padding: 8px 10px; border-radius: var(--radius); border: 1px solid var(--line); }
+.neko-msg.her { background: var(--bg-card); }
+.neko-msg.you { background: transparent; border-style: dashed; color: var(--text-dim); }
+
+/* 子页壳子占位（梦想页：用户「目前允许只有个壳子」） */
+.shell-note {
+  padding: 22px 16px; border: 1px dashed var(--line-strong); border-radius: var(--radius);
+  color: var(--text-dim); text-align: center; line-height: 1.9;
+}
+
+/* ══════════════ 折叠分组（设计稿第 27 行：主面板重组）══════════════
+   ★★★ 2025（用户裁定 + 他的自述）：「我要是用户估计会倾向于 **b 方案**（可折叠）
+     —— 建议有个**下拉条**，同时下拉条中有个**复选框**以确认记住展开状态」
+     ⇒ 一行标题即"下拉条"（整行可点，右侧箭头指示）+ 一个复选框控制"记住" ✓
+   ⚠️ 用 `<button>` 而不是 `<div onclick>`：键盘可达（Enter/Space 原生支持）✓
+   ⚠️ 复选框**不随折叠一起藏起来** —— 它就住在标题行里（收起时也必须能看到/改）✓ */
+.fold-head {
+  display: flex; align-items: center; gap: 8px; width: 100%;
+  padding: 10px 12px; cursor: pointer; text-align: left;
+  background: var(--bg-card); border: 1px solid var(--line);
+  border-radius: var(--radius); color: var(--text-dim);
+  font-size: 12px; font-weight: 600; letter-spacing: 1px; text-transform: uppercase;
+  font-family: inherit;
+}
+.fold-head:hover { border-color: var(--line-strong); color: var(--text); }
+/* 箭头：收起时 ▸、展开时 ▾（纯 CSS 旋转，不换字符 ⇒ 不会因字体缺字变方块） */
+.fold-head .fold-arrow {
+  display: inline-block; transition: transform .15s ease; font-size: 10px;
+}
+.fold-head[aria-expanded="true"] .fold-arrow { transform: rotate(90deg); }
+.fold-head .fold-count { margin-left: auto; text-transform: none; letter-spacing: 0; font-weight: 400; }
+/* 复选框那一格：单独一列，点击**不触发折叠**（见 ui.js 的 stopPropagation） */
+.fold-head .fold-remember {
+  display: flex; align-items: center; gap: 4px; margin-left: 8px;
+  text-transform: none; letter-spacing: 0; font-weight: 400;
+  color: var(--text-faint); cursor: pointer;
+}
+.fold-head .fold-remember input { cursor: pointer; margin: 0; }
+.fold-body { display: flex; flex-direction: column; gap: var(--gap); min-width: 0; }
+.fold-body[hidden] { display: none; }
+/* 折叠时给个提示：内容还在，只是收起来了（避免"以为没了"） */
+.fold-head[aria-expanded="false"] .fold-hint { display: inline; }
+.fold-head .fold-hint { display: none; text-transform: none; letter-spacing: 0; font-weight: 400; color: var(--text-faint); }
+
+/* ══════════════ 资源条 ══════════════ */
+
+.resources {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(158px, 1fr));
+  gap: 1px;
+  background: var(--line);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  overflow: hidden;
+  margin-bottom: var(--gap);
+}
+.res {
+  background: var(--bg);
+  padding: 11px 14px;
+}
+.res .k {
+  font-size: 10.5px; text-transform: uppercase; letter-spacing: .9px;
+  color: var(--text-faint); margin-bottom: 3px;
+}
+.res .v { font-size: 21px; font-weight: 600; line-height: 1.2; }
+.res .r { font-size: 11.5px; color: var(--text-dim); margin-top: 2px; }
+.res.primary .v { font-size: 25px; }
+
+/* ══════════════ 卡片 ══════════════ */
+
+.card {
+  background: var(--bg-card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+}
+.card > h2 {
+  font-size: 12px; font-weight: 600; letter-spacing: 1px;
+  text-transform: uppercase; color: var(--text-faint);
+  margin-bottom: 12px;
+  display: flex; align-items: center; gap: 8px;
+}
+.card > h2 .badge {
+  font-size: 10px; padding: 1px 7px; border-radius: 999px;
+  border: 1px solid var(--line-strong); color: var(--text-dim);
+  letter-spacing: .5px; text-transform: none;
+}
+
+/* ══════════════ 按钮 ══════════════ */
+
+button { font: inherit; cursor: pointer; }
+
+.btn {
+  display: block; width: 100%; text-align: left;
+  background: var(--bg);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
+  color: var(--text-dim);
+  padding: 10px 13px;
+  transition: background .12s, border-color .12s, color .12s, box-shadow .12s;
+  position: relative;
+}
+.btn:hover:not(:disabled) { background: var(--bg-hover); border-color: var(--line-strong); }
+
+/* 买得起：彩边 + 发光 */
+.btn.affordable {
+  border-color: var(--blue);
+  color: var(--blue);
+  box-shadow: 0 0 0 1px rgba(58,172,214,.12), 0 0 10px rgba(58,172,214,.10);
+}
+.btn.affordable .btn-cost { color: var(--green); text-shadow: 0 0 7px var(--green); }
+.btn.affordable:hover {
+  background: var(--blue); color: var(--bg);   /* AD 式反色 */
+  box-shadow: 0 0 16px rgba(58,172,214,.45);
+}
+.btn.affordable:hover .btn-cost,
+.btn.affordable:hover .btn-desc { color: var(--bg); text-shadow: none; }
+
+.btn:disabled, .btn.maxed { opacity: .38; cursor: not-allowed; }
+
+.btn-row { display: flex; align-items: baseline; gap: 8px; }
+.btn-name { font-weight: 600; font-size: 13.5px; }
+.btn-lv { margin-left: auto; font-size: 11.5px; color: var(--text-faint); white-space: nowrap; }
+.btn-desc { font-size: 11.5px; color: var(--text-dim); margin-top: 3px; }
+.btn-cost { font-size: 12px; margin-top: 4px; color: var(--text-dim); }
+
+.stack { display: flex; flex-direction: column; gap: 8px; }
+
+/*
+   ∞ 层的无限升级已经到 12 条，单列会把无限页拉得很长 —— 用 2×n 网格。
+   （窄屏退回单列，和 .layout 的断点保持一致。）
+*/
+.inf-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.inf-grid .btn { height: 100%; }
+@media (max-width: 900px) { .inf-grid { grid-template-columns: 1fr; } }
+
+/* ══════════════ 主点击按钮 ══════════════ */
+
+.click-zone {
+  display: grid; grid-template-columns: 1fr auto; gap: var(--gap); align-items: stretch;
+}
+#btn-click {
+  background: var(--bg);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius);
+  color: var(--accent);
+  font-size: 16px; font-weight: 600;
+  padding: 22px;
+  text-shadow: 0 0 8px rgba(47,166,247,.55);
+  box-shadow: inset 0 0 26px rgba(47,166,247,.06);
+  transition: background .1s, color .1s, box-shadow .1s, transform .05s;
+}
+#btn-click:hover { background: rgba(47,166,247,.10); box-shadow: 0 0 22px rgba(47,166,247,.28), inset 0 0 26px rgba(47,166,247,.10); }
+#btn-click:active { transform: scale(.99); background: rgba(47,166,247,.20); }
+#btn-click .sub { display: block; font-size: 12px; font-weight: 400; color: var(--text-dim); margin-top: 5px; text-shadow: none; }
+
+/* ══════════════ 进度条 ══════════════ */
+
+.bar {
+  position: relative;
+  height: 18px; border-radius: 4px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--line);
+  overflow: hidden;
+}
+.bar > i {
+  display: block; height: 100%; width: 0%;
+  background: linear-gradient(90deg, var(--eternity), var(--accent));
+  transition: width .25s;
+}
+.bar > span {
+  position: absolute; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 11px; color: var(--text);
+  text-shadow: 0 0 4px #000, 0 0 4px #000;
+}
+
+/* ══════════════ 里程碑 ══════════════ */
+
+.ms-list { display: flex; flex-direction: column; gap: 5px; }
+.ms {
+  display: flex; align-items: center; gap: 9px;
+  padding: 7px 10px; border-radius: 4px;
+  background: var(--bg-elevated);
+  border: 1px solid transparent;
+  font-size: 12.5px;
+}
+.ms .dot {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: var(--disabled); flex: 0 0 auto;
+}
+.ms .txt { flex: 1; color: var(--text-dim); min-width: 0; }
+.ms .need { color: var(--text-faint); font-size: 11px; white-space: nowrap; }
+.ms.done { border-color: rgba(100,221,23,.28); }
+.ms.done .dot { background: var(--green); box-shadow: 0 0 8px var(--green); }
+.ms.done .txt { color: var(--text); }
+.ms.next { border-color: var(--line-strong); }
+.ms.next .dot { background: var(--gold); box-shadow: 0 0 8px var(--gold); }
+
+/* ══════════════ 日志 ══════════════ */
+
+#log-panel {
+  max-height: 148px; overflow-y: auto;
+  font-size: 11.5px; line-height: 1.65;
+  color: var(--text-dim);
+}
+#log-panel .le { border-bottom: 1px solid #0f0f0f; padding: 3px 0; }
+#log-panel .le:last-child { border-bottom: none; }
+#log-panel .lt { color: var(--text-faint); margin-right: 7px; }
+#log-panel::-webkit-scrollbar { width: 7px; }
+#log-panel::-webkit-scrollbar-track { background: var(--bg); }
+#log-panel::-webkit-scrollbar-thumb { background: var(--line-strong); border-radius: 4px; }
+
+/* ══════════════ 顶部小按钮 ══════════════ */
+
+.tools { display: flex; gap: 7px; flex-wrap: wrap; }
+.tool {
+  background: var(--bg); border: 1px solid var(--line-strong);
+  color: var(--text-dim); border-radius: 4px;
+  padding: 5px 12px; font-size: 12px;
+  transition: all .12s;
+}
+.tool:hover { border-color: var(--accent); color: var(--accent); }
+.tool.danger:hover { border-color: var(--bad); color: var(--bad); }
+.tool.on { border-color: var(--green); color: var(--green); }
+
+/* ══════════════ 性能监视器（诊断用，默认隐藏）══════════════
+   ★★★ 2025（用户报「数字跳动速率及其低下」）：
+   右上角一块小 HUD。它自己必须便宜 —— 所以：
+     · `position: fixed` + `pointer-events: none` ⇒ **不参与布局**（不引起回流）✓
+     · 只在打开时才被写（每 20 帧一次）✓
+   ⚠️ 用 `white-space: pre` 保留换行（文本里有 `\n`），避免每行单独建元素 ✗ */
+#perf-hud {
+  position: fixed; top: 8px; right: 8px; z-index: 9999;
+  pointer-events: none;
+  padding: 8px 10px; border-radius: var(--radius);
+  background: rgba(0, 0, 0, .82); border: 1px solid var(--line-strong);
+  color: var(--text-dim); font-size: 11px; line-height: 1.6;
+  font-family: ui-monospace, Consolas, monospace;
+  white-space: pre; text-align: right;
+}
+#perf-hud[hidden] { display: none; }
+
+/* ══════════════ 锁定态 ══════════════ */
+.locked {
+  text-align: center; padding: 20px 14px;
+  color: var(--text-faint); font-size: 12.5px;
+}
+.locked .big { font-size: 28px; display: block; margin-bottom: 8px; opacity: .5; }
+.locked .cond { margin-top: 9px; font-size: 11.5px; }
+.locked .cond .ok { color: var(--green); }
+.locked .cond .no { color: var(--bad); }
+
+/* ══════════════ 数值明细 ══════════════ */
+
+.detail { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 4px 18px; }
+.detail > div {
+  display: flex; justify-content: space-between; gap: 10px;
+  padding: 4px 0; border-bottom: 1px dashed #131313; font-size: 12.5px;
+}
+.detail span:first-child { color: var(--text-faint); }
+.detail b { font-weight: 600; }
+
+/* ══════════════ 作用乘区配色 ══════════════
+
+   每个升级按「作用在哪个乘区」上色。左侧有一条 3px 的色条，
+   hover 时整条边框也变成该乘区的颜色。
+
+   目的是让玩家一眼看出「这两条叠在同一个位置」——SPEC 判据 P7
+   说纯乘法链上乘法因子位置无关，但光看文字看不出来。
+*/
+
+.zone { border-left: 3px solid var(--zone, var(--line-strong)); }
+.zone-entropy  { --zone: #64dd17; }
+.zone-particle { --zone: #00bcd4; }
+.zone-matter   { --zone: #ff9800; }
+.zone-zpe      { --zone: #2fa6f7; }
+.zone-de       { --zone: #b388ff; }
+.zone-countfreq { --zone: #26a69a; }  /* 计数频率项（那条 1+0.05×等级 的升级） */
+.zone-global   { --zone: #ffd600; }   /* 真·全局加成（全局加成那个乘积） */
+.zone-cost     { --zone: #90a4ae; }   /* 价格修正（不产生产出） */
+.zone-dm       { --zone: #ff3b30; }   /* 第四层：暗物质，红色主色调 */
+.zone-ip       { --zone: #ff4d94; }   /* ∞ 层：无限点收益 */
+
+/*
+  用乘区色写普通文字。
+  用途：顶部「全局加成」槽的因子分解（`梦想点 ×1.4 · 计数频率 ×10.2 · 暗能量 ×8.7`），
+  每个因子按自己的乘区上色 —— 一眼分清「计数频率（那个升级）」与「全局（乘积）」。
+*/
+.zf { color: var(--zone, var(--text-dim)); }
+
+/* 买得起时：边框用乘区色而不是统一的蓝 */
+.btn.zone.affordable {
+  border-color: var(--zone, var(--blue));
+  color: var(--zone, var(--blue));
+  box-shadow: 0 0 10px color-mix(in srgb, var(--zone, var(--blue)) 22%, transparent);
+}
+.btn.zone.affordable .btn-cost { color: var(--zone, var(--green)); text-shadow: 0 0 7px var(--zone, var(--green)); }
+.btn.zone.affordable:hover {
+  background: var(--zone, var(--blue));
+  color: var(--bg);
+  box-shadow: 0 0 18px color-mix(in srgb, var(--zone, var(--blue)) 55%, transparent);
+}
+.btn.zone.affordable:hover .btn-cost,
+.btn.zone.affordable:hover .btn-desc { color: var(--bg); text-shadow: none; }
+
+/* 乘区小标签 */
+.zone-tag {
+  font-size: 10px; padding: 1px 6px; border-radius: 3px;
+  border: 1px solid var(--zone, var(--line-strong));
+  color: var(--zone, var(--text-dim));
+  white-space: nowrap;
+}
+/* 虹色卡（梦想系统）没有单一 --zone，标签取虹色里最深的一段，别让它退回灰色 */
+.rainbow-card .zone-tag { border-color: #7c4dff; color: #b388ff; }
+
+/* 图例 */
+.legend {
+  display: flex; flex-wrap: wrap; gap: 6px 14px;
+  padding: 10px 12px; margin-bottom: var(--gap);
+  background: var(--bg-card); border: 1px solid var(--line);
+  border-radius: var(--radius);
+  font-size: 11.5px;
+}
+.legend .item { display: flex; align-items: center; gap: 6px; color: var(--text-dim); }
+.legend .swatch {
+  width: 10px; height: 10px; border-radius: 2px;
+  background: var(--zone); box-shadow: 0 0 6px var(--zone);
+}
+/* 虹色乘区（梦想加成）：色块走流动渐变，和 .rainbow 文字同一套色 */
+.legend .swatch-rainbow {
+  background: linear-gradient(90deg,
+    #ff5f6d, #ffc371, #7ee787, #4dd0e1, #7c4dff, #ff5f6d);
+  background-size: 300% 100%;
+  box-shadow: 0 0 6px #7c4dff;
+  animation: dreamHue 6s linear infinite;
+}
+.legend .hint { margin-left: auto; color: var(--text-faint); font-size: 11px; }
+
+/* 里程碑也带乘区色 */
+.ms { border-left: 3px solid var(--zone, transparent); }
+
+/* ══════════════ 买满按钮 ══════════════ */
+
+.btn-main {
+  display: flex; align-items: stretch; gap: 6px;
+}
+.btn-main > .btn { flex: 1; }
+.btn-max {
+  flex: 0 0 auto; min-width: 66px;
+  background: var(--bg); border: 1px solid var(--line-strong);
+  border-radius: var(--radius); color: var(--text-dim);
+  font-size: 11.5px; font-weight: 600; letter-spacing: .5px;
+  transition: all .12s;
+}
+.btn-max:hover:not(:disabled) { border-color: var(--zone, var(--accent)); color: var(--zone, var(--accent)); }
+.btn-max.can { border-color: var(--zone, var(--green)); color: var(--zone, var(--green)); }
+.btn-max.can:hover { background: var(--zone, var(--green)); color: var(--bg); }
+.btn-max:disabled { opacity: .3; cursor: not-allowed; }
+.btn-max .n { display: block; font-size: 13px; }
+
+/* ══════════════ 工具类 ══════════════ */
+
+.toolbar { display: flex; gap: 8px; margin: 18px 0 8px; flex-wrap: wrap; }
+
+/* ══════════════ 标签页（AD 现代 UI 风格）══════════════
+
+   标签栏贴在卡片顶部，激活项用该层的乘区色高亮 + 底部色条。
+   每个标签对应一个「系统」，颜色沿用 ZONES 的定义。
+*/
+
+/*
+  ⚠️ 这里**不能**用 `overflow-x: auto`（曾经就是它把子页浮出层裁掉的）。
+     原因：CSS 规范里只要一个轴不是 `visible`，另一个轴的 `visible` 会被算成 `auto` ——
+     于是 `.tabs` 成了**滚动容器**，两个后果：
+       1. 绝对定位的 `.tab-flyout`（在它内部）被**裁剪**，伸不出去；
+       2. 标签条自己变成可纵向滚动的，而滚动条又被下面的规则藏了 ——
+          现象就是「看不到浮出层，但滚轮能把它滚出来」（用户实测到的怪现象）。
+     现在改成**换行**：窄屏时标签排两行，浮出层可以正常盖在面板上。
+     守卫：`tools/dom-smoke.mjs` 的「虚空子页」会检查这些祖先里没有 overflow。
+*/
+/* ── 规则行 / 注释行（模仿 0.3.4 的「消耗 A → B」短句）──────────────
+   `.rule` 是**影响玩法判断**的那一句话（放区块顶部、带左侧色条，醒目）；
+   `.note` 是补充说明（次要、灰一点）。
+   两者刻意共用同一套排版，避免界面上出现第三种文本风格。 */
+.rule {
+  margin: 0 0 12px;
+  padding: 7px 10px;
+  border-left: 2px solid var(--accent);
+  background: rgba(255,255,255,.03);
+  border-radius: 0 var(--radius) var(--radius) 0;
+  font-size: 12px; line-height: 1.75; color: var(--text-dim);
+}
+.rule b { color: var(--text-bright); font-weight: 600; }
+.note {
+  margin: 8px 0 0;
+  font-size: 11.5px; line-height: 1.7; color: var(--text-faint);
+}
+.note b { color: var(--text-dim); font-weight: 600; }
+
+.tabs {
+  display: flex; gap: 2px; flex-wrap: wrap;
+  border-bottom: 1px solid var(--line);
+  margin: -14px -16px 14px -16px;   /* 抵消 .card 的 padding */
+  padding: 0 7px;
+}
+.tabs::-webkit-scrollbar { display: none; }
+
+.tab {
+  flex: 0 0 auto;
+  background: transparent; border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--text-faint);
+  padding: 11px 14px 9px;
+  font-size: 12.5px; font-weight: 600; letter-spacing: .3px;
+  white-space: nowrap;
+  transition: color .13s, border-color .13s, background .13s;
+  display: flex; align-items: center; gap: 7px;
+}
+.tab:hover { color: var(--text-dim); background: rgba(255,255,255,.025); }
+.tab.active {
+  color: var(--zone, var(--accent));
+  border-bottom-color: var(--zone, var(--accent));
+  text-shadow: 0 0 8px color-mix(in srgb, var(--zone, var(--accent)) 45%, transparent);
+}
+.tab .dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--zone, var(--line-strong));
+  flex: 0 0 auto;
+}
+.tab.active .dot { box-shadow: 0 0 7px var(--zone, var(--accent)); }
+.tab .tag {
+  font-size: 10px; padding: 0 5px; border-radius: 3px;
+  background: rgba(255,255,255,.06); color: var(--text-faint);
+  font-weight: 500;
+}
+.tab.active .tag { background: color-mix(in srgb, var(--zone) 22%, transparent); color: var(--zone); }
+
+/* ── 带子页的标签（虚空科技 → 升级/里程碑 ｜ ZPE 引擎）─────────────────
+   悬停（或键盘 focus-within）时浮出两条入口。
+   浮出层用绝对定位贴着标签下沿，父级是 `.tab-wrap`（`<button>` 里不能放 `<button>`）。
+   ⚠️ 它必须待在**没有 overflow** 的祖先里，否则会被裁掉（见上面 `.tabs` 的注释）。 */
+.tab-wrap { position: relative; display: flex; }
+.tab-flyout {
+  position: absolute; top: 100%; left: 0; z-index: 30;
+  display: none; flex-direction: column; min-width: 152px;
+  background: var(--bg-card); border: 1px solid var(--line-strong);
+  border-radius: 0 0 var(--radius) var(--radius);
+  box-shadow: 0 10px 24px rgba(0,0,0,.55);
+  overflow: hidden;
+}
+.tab-wrap:hover .tab-flyout,
+.tab-wrap:focus-within .tab-flyout { display: flex; }
+.flyout-item {
+  background: transparent; border: none; text-align: left;
+  color: var(--text-dim); padding: 9px 12px;
+  font-size: 12px; font-weight: 600; white-space: nowrap;
+  border-left: 3px solid transparent;
+  transition: background .12s, color .12s, border-color .12s;
+}
+.flyout-item:hover { background: rgba(255,255,255,.045); color: var(--text-bright); }
+.flyout-item.active {
+  color: var(--zone, var(--accent));
+  border-left-color: var(--zone, var(--accent));
+  background: rgba(255,255,255,.03);
+}
+/* 触发飞出的那个标签本身，在子页激活时也保持高亮 */
+.tab-wrap.sub-active .tab { color: var(--zone, var(--accent)); border-bottom-color: var(--zone, var(--accent)); }
+/* ══════════════════════════════════════════════════════════
+   暗物质相变环
+   ══════════════════════════════════════════════════════════
+
+   为什么要有它：坍缩是自动的，玩家在等的时候会纳闷「我是不是没事干」。
+   原稿用百分比进度条解决这个问题，这里换成圆环。
+
+   ⚠️ 环的厚度必须**大于内部文字**，否则文字会压住环、看不出读数。
+      这里 stroke-width 16 > font-size 13。 */
+.ring-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 14px;
+}
+.ring-wrap {
+  position: relative;
+  width: 88px;
+  height: 88px;
+  flex: 0 0 auto;
+}
+.ring {
+  width: 100%;
+  height: 100%;
+  transform: rotate(-90deg);   /* 从 12 点方向开始 */
+}
+/* 底环（非高光部分）：**比背景亮一点点**的暗色。
+   背景是 #000，所以用 #1b1b1b —— 能看出有圈，但不会抢眼。
+   （之前用 #171717，用户反馈看着偏亮，已压暗。）*/
+.ring-track {
+  fill: none;
+  stroke: #1b1b1b;
+  stroke-width: 16;
+}
+/* 进度模式：保持原来的红色 */
+.ring-fill {
+  fill: none;
+  stroke: #ff3b30;
+  stroke-width: 16;
+  stroke-linecap: butt;
+  /* 半径 42 -> 周长 2πr ≈ 263.9 */
+  stroke-dasharray: 263.9;
+  stroke-dashoffset: 263.9;
+  transition: stroke-dashoffset .1s linear;
+  filter: drop-shadow(0 0 4px rgba(255, 59, 48, .55));
+}
+.ring-label {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  color: var(--text);
+  text-shadow: 0 0 4px #000, 0 0 2px #000;   /* 保证压在环上也读得清 */
+  pointer-events: none;
+}
+.ring-info { font-size: 12px; line-height: 1.75; }
+.ring-info > div { display: flex; justify-content: space-between; gap: 12px; }
+.ring-info span { color: var(--text-faint); }
+.ring-info b { color: var(--text); font-variant-numeric: tabular-nums; }
+
+/* 瞬时模式：一轮不到 0.5 秒时，填充环看不出变化，
+   改成一段**高光绕圈旋转**，让玩家仍然看到「系统在跑」。
+   高光用紫色（= 暗能量页的乘区色 --zone），和常驻的红/金区分开。 */
+.ring-wrap.instant .ring-fill {
+  stroke-dasharray: 46 217.9;
+  stroke: #b388ff;
+  filter: drop-shadow(0 0 6px rgba(179, 136, 255, .85));
+  animation: ringSpin .85s linear infinite;
+}
+@keyframes ringSpin {
+  to { stroke-dashoffset: -263.9; }
+}
+.ring-wrap.instant .ring-label { color: #b388ff; }
+
+/* 有新东西可买时脉动提示。
+      否则「无限」标签（金色）会被染成绿的。
+   （踩过：.tab.alert 写在 .tab.active 之后，同优先级下后者覆盖前者。）*/
+.tab.alert {
+  color: var(--zone, var(--accent));
+  text-shadow: 0 0 11px var(--zone, var(--accent));
+  animation: tabPulse 1.5s ease-in-out infinite;
+}
+.tab.alert .dot {
+  background: var(--zone, var(--accent));
+  box-shadow: 0 0 9px var(--zone, var(--accent));
+}
+@keyframes tabPulse {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: .58; }
+}
+
+.tab-panel[hidden] { display: none; }
+
+/* 锁定的标签 */
+.tab.locked { color: var(--text-faint); opacity: .45; cursor: not-allowed; }
+.tab.locked .dot { background: var(--disabled); }
+
+/* ══════════════ 量子（红色）══════════════ */
+
+.quantum-head {
+  display: flex; align-items: baseline; gap: 9px;
+  padding: 10px 12px; margin-bottom: 12px;
+  background: rgba(255,59,48,.06);
+  border: 1px solid rgba(255,59,48,.28);
+  border-radius: var(--radius);
+}
+.quantum-head .v {
+  font-size: 24px; font-weight: 700; color: var(--zone-dm, #ff3b30);
+  text-shadow: 0 0 10px rgba(255,59,48,.65);
+}
+.quantum-head .k { font-size: 11px; color: var(--text-faint); text-transform: uppercase; letter-spacing: .8px; }
+.quantum-head .sub { margin-left: auto; font-size: 11.5px; color: var(--text-dim); }
+
+.q-card {
+  border-left: 3px solid #ff3b30;
+  background: linear-gradient(90deg, rgba(255,59,48,.05), transparent 60%);
+}
+.q-card.owned { opacity: .55; }
+
+/* ══════════════ 提示条 ══════════════ */
+
+.banner {
+  background: rgba(47,166,247,.07);
+  border: 1px solid rgba(47,166,247,.3);
+  color: var(--accent);
+  border-radius: var(--radius);
+  padding: 9px 13px; font-size: 12.5px; margin-bottom: var(--gap);
+}
+
+#fatal {
+  display: none; margin-bottom: var(--gap);
+  background: rgba(217,83,79,.08); border: 1px solid rgba(217,83,79,.4);
+  color: #ff9f9f; padding: 14px; border-radius: var(--radius);
+  white-space: pre-wrap; font-family: ui-monospace, Consolas, monospace; font-size: 12px;
+}
+
+/* ══════════════ 梦想点：虹色 ══════════════
+   用户要求：梦想点与涉及梦想点的升级用虹色。
+   做法是**流动的渐变文字**（background-clip: text），比特效堆叠更干净，
+   而且颜色本身在动，一眼能认出「这是梦想点体系」。 */
+@keyframes dreamHue {
+  0%   { background-position:   0% 50%; }
+  100% { background-position: 300% 50%; }
+}
+.rainbow {
+  background: linear-gradient(90deg,
+    #ff5f6d, #ffc371, #7ee787, #4dd0e1, #7c4dff, #ff5f6d);
+  background-size: 300% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+  animation: dreamHue 6s linear infinite;
+  font-weight: 700;
+}
+/* 卡片：走边框 + 底色，不做文字裁剪（否则子元素全变透明） */
+.q-card.rainbow-card {
+  position: relative;
+  border-left: 3px solid transparent;
+  background: linear-gradient(90deg, rgba(124,77,255,.07), transparent 65%);
+}
+/*
+  左侧色条**必须自己做动画**：原来用 `border-image` 铺静态渐变，
+   颜色是不动的（用户反馈"第一个颜色为什么不动"）。
+   改成伪元素 + 纵向流动的渐变，和 `.rainbow` 文字同一套色。
+*/
+@keyframes dreamHueY {
+  0%   { background-position: 50%   0%; }
+  100% { background-position: 50% 300%; }
+}
+.q-card.rainbow-card::before {
+  content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 3px;
+  border-radius: 3px 0 0 3px;
+  background: linear-gradient(180deg,
+    #ff5f6d, #ffc371, #7ee787, #4dd0e1, #7c4dff, #ff5f6d);
+  background-size: 100% 300%;
+  animation: dreamHueY 6s linear infinite;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   ★★★ 2025：**全页面悬浮重置窗**（用户要求）
+   「全页面悬浮的窗口，内含 无限/永恒/时空/梦想 四个重置按钮……
+
+   ── 为什么是 `fixed` ──
+     "全页面悬浮" = **滚动时也一直在** ⇒ 必须 `position: fixed`（不是 absolute）✓
+
+   ── 为什么可以折叠 ──
+     悬浮窗会挡住右下角的内容 ⇒ 必须能收起来（`.fr-collapsed` 只留标题栏）✓
+
+   ── z-index ──
+     比 `#perf-hud`（9999）略高，因为它是**操作入口**、HUD 是诊断 ✗ 抢不过没关系：
+     两者默认不会重叠（HUD 在右上，本窗在右下）✓
+   ══════════════════════════════════════════════════════════════ */
+.float-resets {
+  position: fixed;
+  right: 10px;
+  bottom: 10px;
+  z-index: 10000;
+  width: 186px;
+  background: var(--bg-card, #0e0e0e);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
+  box-shadow: 0 6px 22px rgba(0, 0, 0, .75);
+  font-size: 12px;
+  user-select: none;
+}
+/* 折叠：只留标题栏（`display:none` 会让状态丢失 ⇒ 用 height/overflow） */
+.float-resets.fr-collapsed .fr-body { display: none; }
+
+.fr-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  padding: 5px 6px 5px 9px;
+  border-bottom: 1px solid var(--line);
+  cursor: default;
+}
+.fr-collapsed .fr-head { border-bottom: 0; }
+.fr-title { color: var(--text-dim); font-size: 11px; letter-spacing: .12em; }
+.fr-min {
+  width: 20px; height: 20px; line-height: 1;
+  background: transparent; color: var(--text-dim);
+  border: 1px solid var(--line-strong); border-radius: 4px;
+  cursor: pointer; font-size: 13px; padding: 0;
+}
+.fr-min:hover { color: var(--text-bright); border-color: var(--accent); }
+
+.fr-body { display: flex; flex-direction: column; gap: 5px; padding: 7px; }
+
+.fr-btn {
+  display: flex; align-items: baseline; justify-content: space-between; gap: 6px;
+  flex-wrap: wrap;              /* ★ 副标题太长时换行，而不是被截断（`0 / 1.00e280` 会挤掉）✓ */
+  padding: 7px 9px;
+  background: #141414;
+  color: var(--text);
+  border: 1px solid var(--line-strong);
+  /* 左侧乘区色条（与页面上的 `.btn.zone` 同一套语义）✓ */
+  border-left: 3px solid var(--zone, var(--line-strong));
+  border-radius: 5px;
+  cursor: pointer;
+  text-align: left;
+  font: inherit;
+  transition: background .12s, border-color .12s;
+}
+.fr-btn:hover:not(:disabled) { background: #1e1e1e; border-color: var(--zone, var(--accent)); }
+.fr-btn:active:not(:disabled) { background: #262626; }
+.fr-btn .fr-name { font-weight: 600; }
+/* ★ 副标题占满整行 —— 数字（`0 / 1.00e280`）比"大坍缩"长得多，
+   挤在同一行会把数字切掉 ✗ ⇒ 让它独占一行（`flex-basis:100%`）✓ */
+.fr-btn .fr-sub { flex: 1 0 100%; color: var(--text-dim); font-size: 10px; }
+
+/* 可用态：整条边框点亮乘区色（与 `.btn.affordable` 同一语义）✓
+   ⚠️ 底色**不用 `color-mix()`** —— 那是较新的 CSS 特性，
+     本项目要能在 Edge / 旧 Chromium 上跑 ⇒ 用"乘区色 + 低透明度的
+     径向渐变"达到同样的"泛光"效果（兼容性无风险）✓ */
+.fr-btn.affordable {
+  border-color: var(--zone, var(--green));
+  background:
+    radial-gradient(120% 130% at 0% 50%, rgba(255, 255, 255, .10), transparent 62%),
+    #141414;
+  box-shadow: inset 0 0 0 1px var(--zone, var(--green));
+}
+.fr-btn.affordable .fr-sub { color: var(--zone, var(--green)); }
+
+/* ── 占位按钮（时空 / 梦想）──
+   刻意**禁用了指针事件**：点不动、也不显示"点了没反应"的假象 ✗
+   （`disabled` 已挡点击，这里再加 `cursor` 与灰度，视觉上一眼可辨）✓ */
+.fr-placeholder {
+  opacity: .55;
+  cursor: not-allowed;
+  border-left-style: dashed;
+}
+.fr-placeholder .fr-sub { color: var(--text-faint); }
+
+/* ── 时空：**黑白流动**（用户指定配色）──
+   ⚠️ 用户先说的是"黑白闪烁"，随后更正为「**黑白流动**」⇒
+     用**流动的渐变**（`background-position` 动），不是 `steps` 硬切 ✗
+   ── 实现要点 ──
+     · `background: linear-gradient(...)` + `background-size` 放大到 300%
+       ⇒ 再动 `background-position` 就有了"连续流过"的感觉 ✓
+     · 文字用 `mix-blend-mode: difference`：底色无论是黑是白，
+       文字都自动取反色 ⇒ **不需要**再动画 `color`（那会与背景不同步、闪烁感更强）✗
+     · 只用这一个小元素做动画 ⇒ 重绘代价可忽略（本项目的性能教训：动画别铺大范围）✓
+     · `prefers-reduced-motion` 时停掉动画（无障碍）✓ */
+@keyframes stFlow {
+  0%   { background-position:   0% 50%; }
+  100% { background-position: 300% 50%; }
+}
+.fr-st-flow {
+  background: linear-gradient(90deg,
+    #000 0%, #fff 12%, #000 25%, #fff 37%, #000 50%,
+    #fff 62%, #000 75%, #fff 87%, #000 100%);
+  background-size: 300% 100%;
+  animation: stFlow 20s linear infinite;   /* ★ 2025：用户裁定「流动速度过快，降速 75%」⇒ 5s → 20s ✓ */
+  opacity: 1;                 /* 流动本身就是"未完成"的视觉信号 ⇒ 不降透明度 */
+  border-left-style: solid;
+  border-color: #888;
+  color: #fff;
+  /* 文字随底色自动取反（黑白流动里这是唯一能一直可读的写法）✓ */
+  mix-blend-mode: difference;
+}
+.fr-st-flow .fr-sub { color: inherit; opacity: .75; }
+@media (prefers-reduced-motion: reduce) {
+  .fr-st-flow {
+    animation: none;
+    background: linear-gradient(90deg, #000 0%, #fff 50%, #000 100%);
+    background-size: 100% 100%;
+  }
+}
+
+/* 窄屏：缩一点，别盖住内容 */
+@media (max-width: 640px) {
+  .float-resets { width: 128px; right: 6px; bottom: 6px; }
+  .fr-btn { padding: 6px 7px; }
+  .fr-btn .fr-sub { display: none; }      /* 小屏只留名字（副标题会换行） */
+}
+
+/* ★★★ 2026：七巧板「获取巧板」卡片（托盘上方：保底条 + 抽 + 直接兑换）✓ */
+.tg-acq-bar { height: 8px; background: var(--bg-elevated); border-radius: 4px; overflow: hidden; margin: 4px 0 6px; }
+.tg-acq-bar > i { display: block; height: 100%; width: 0; background: var(--eternity, #b388ff); transition: width .12s; }
+.tg-acq-row { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.tg-acq-row > .btn { width: auto; }
+/* ★ 2026：托盘槽位里的形状缩略图（左图右名）✓ */
+.tangram-slot { display: flex; align-items: center; gap: 6px; }
+.tangram-slot > svg { flex: 0 0 auto; }
+/* ══════════════════════════════════════════════════════════
+   ★★★ 2026：梦想页的**分组 + 右侧并排开关**
+   ⚠️ 项目的 `.btn` 是 `display:block; width:100%` ⇒ 放在 flex 行里的按钮**必须显式 width:auto**，
+      否则会把卡片挤成 1px 宽的竖条（这个坑踩过三次 ✗）
+   ══════════════════════════════════════════════════════════ */
+.q-card-wrap { display: flex; align-items: stretch; gap: 6px; }
+.q-card-wrap > .q-card { flex: 1 1 auto; min-width: 0; }
+.q-card-wrap > .dream-toggle {
+  flex: 0 0 auto; width: auto; min-width: 46px;
+  align-self: center; font-size: 12px; padding: 6px 10px;
+}
+.dream-toggle.off { opacity: .62; }
+/* 分组：整行标签 + 组内两列 */
+.dream-group-label {
+  grid-column: 1 / -1; margin: 10px 0 4px; padding-bottom: 3px;
+  font-size: 0.82em; font-weight: 700; color: var(--text-dim);
+  border-bottom: 1px solid var(--line-strong);
+}
+.dream-group-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
+/* ★ 2026：按组决定 2 / 3 列（用户：「根据种类以 3 列或 2 列的分隔标签生效」） */
+.dream-group-grid--2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.dream-group-grid--3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+@media (max-width: 900px) { .dream-group-grid, .dream-group-grid--2, .dream-group-grid--3 { grid-template-columns: 1fr; } }
+/* ══════════════════════════════════════════════════════════
+   ★★★ 2026（用户：「巧板托盘 ui 再归一化优化，更直白且不要这么杂乱」）
+   —— 统一尺寸 / 不折行 / 按钮并排 / 控制条压成两行 ✓
+   ⚠️ 项目 `.btn` 是 block+100% 宽 ⇒ 行内按钮必须显式 width:auto（踩过三次）
+   ══════════════════════════════════════════════════════════ */
+
+/* ── 获取巧板：标题一行、进度条、两个并排按钮、保底计数一行 ── */
+/* ★★★ 2026-10-22（用户截图：「抽…」「直…」被截断 ⇒ **文字必须显示完整**）——
+   原来 `.tg-acq-row > .btn` 带 `min-width: 0` + `overflow: hidden` + `ellipsis` ✗
+   ⇒ 长价格（抽（1.00e10））就被吃掉 ✗ ⇒ 现在：**允许换行**、按钮按内容撑开、不省略 ✓ */
+#tg-acq-card .tg-acq-title { white-space: normal; overflow: visible; text-overflow: clip; }
+.tg-acq-bar { height: 6px; margin: 4px 0 6px; }
+.tg-acq-row { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.tg-acq-row > .btn {
+  width: auto !important; flex: 0 0 auto; min-width: max-content;
+  font-size: 11px; padding: 5px 8px; white-space: nowrap;
+  overflow: visible; text-overflow: clip;
+}
+.tg-acq-row > span.dim { font-size: 11px; white-space: nowrap; }
+
+/* ── 托盘：单列 7 行，行高统一，名字绝不折行 ── */
+/* ⚠️ 不要改成 flex-column：0.7.1 的 .tangram-tray 本来就是 2 列 grid ✓（截图里的 2 列就是它）*/
+.tangram-tray { gap: 3px !important; }
+/* ★★★ 2026（用户：「图在上，字在下」）—— 槽位改成**纵向**：缩略图居中在上、名字在下 ✓ */
+.tangram-slot {
+  display: flex !important; flex-direction: column !important;
+  align-items: center !important; justify-content: center !important; gap: 2px;
+  min-height: 84px !important; height: 84px !important; padding: 6px 4px !important;   /* ★ 用户：放大约一倍 */
+  border: 1px solid var(--line-strong); border-radius: 4px;
+  white-space: nowrap !important; overflow: hidden !important; font-size: 11px;
+  writing-mode: horizontal-tb !important;   /* ★ 文字仍不许竖排 ✗✗ */
+  text-align: center !important;
+}
+.tangram-slot > svg { width: 46px !important; height: 36px !important; flex: 0 0 auto; }
+.tangram-slot > span { white-space: nowrap !important; overflow: hidden; text-overflow: ellipsis; writing-mode: horizontal-tb !important; max-width: 100%; font-size: 13px; line-height: 1.15; }
+.tangram-slot[data-owned="1"] { border-color: var(--eternity, #b388ff); }
+
+/* ── 控制条：两行、按钮小而等宽，标签直白 ── */
+.tg-controls { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; margin: 8px 0 0; }
+.tg-controls > .btn {
+  width: auto !important; font-size: 11px; padding: 5px 4px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+/* ★ 2026：7 格 = 2 列**等宽**网格（名字放得下才不截断 ✗）*/
+.tangram-tray { display: grid !important; grid-template-columns: repeat(2, minmax(0, 1fr)) !important; gap: 3px !important; }
+/* 托盘内所有子项等宽等高、无外边距残留 ✓ */
+.tangram-tray > * { margin: 0 !important; box-sizing: border-box; }
+
+/* ══════════════════════════════════════════════════════════
+   ★★★ 2026（用户：「你要不重写吧」）—— 右侧列**三段式**：
+     #tg-acq-card（全宽）→ .tangram-tray（2 列网格）→ .tg-controls（4 列按钮）
+   ⚠️ 之前把获取卡与控制条塞进 tray 的网格里 ⇒ 变成单元格、互相压住 ✗
+   ══════════════════════════════════════════════════════════ */
+.tangram-side { display: flex !important; flex-direction: column !important; gap: 6px; min-width: 0; }
+.tangram-side > #tg-acq-card { order: 0; }
+.tangram-side > .tangram-tray { order: 1; }
+.tangram-side > .tg-controls { order: 2; }
+
+.tangram-side .tangram-tray { display: block !important; }
+/* ★ 真正排 7 格的是 .tangram-slots（托盘里还有标题，别把标题也当格子 ✗）*/
+.tangram-side .tangram-slots {
+  display: grid !important;
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  gap: 6px !important;
+}
+.tangram-side .tg-controls {
+  display: grid !important;
+  grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+  gap: 6px !important;
+}
+.tangram-side .tg-controls > .btn {
+  width: auto !important; min-width: 0; font-size: 13px; padding: 10px 2px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.tangram-side #tg-acq-card { padding: 8px; }
+.tangram-side .tg-acq-row { display: flex; gap: 6px; align-items: center; }
+.tangram-side .tg-acq-row > .btn { width: auto !important; font-size: 13px; padding: 8px 10px; }
+
+/* 2026（用户：「记得做轮廓类提示」）：七巧板棋盘的目标轮廓
+   注意：SVG 的 path/polygon 默认 fill 是黑色 => 必须显式给色，否则就是黑块。 */
+.tg-target-path { fill: rgba(255,255,255,0.08) !important; stroke: rgba(255,255,255,0.20) !important; stroke-width: 0.12 !important; pointer-events: none; }
+.tg-piece-poly { fill: rgba(179,136,255,0.30) !important; stroke: var(--eternity,#b388ff) !important; stroke-width: 0.4 !important; }
+.tg-piece-poly.dragging { fill: rgba(179,136,255,0.48) !important; }
+.tg-axis { stroke: var(--line-strong); stroke-width: 0.3; }
+.tg-cov { stroke: var(--eternity,#b388ff); stroke-width: 1.4; }
+.tg-frame { fill: none; stroke: var(--line-strong); stroke-width: 0.4; }
+/* ★★★ 2026（用户：「甚至可能得超越 ui 元素，不然不可见」）——
+   巧板被拖到 svg 视口之外时也必须**可见**：SVG 默认裁剪到视口 ⇒ 关掉裁剪 ✓
+   （祖先也不许裁剪：dom-smoke 的"无祖先裁剪"守卫守着）*/
+.tangram-svg, .tangram-board, .tangram-wrap, #panel-tangram { overflow: visible !important; }
+/* 2026: dashed guide grid beyond the square (visual only) */
+.tg-guide { stroke: rgba(255,255,255,0.10); stroke-width: 0.2; stroke-dasharray: 1 1.6; }
+
+/* ★★★ 2026-10-22（用户：奖励用表格列在最下方）—— 简洁方表，窄屏可横向滚动 ✓ */
+.tg-reward-table { width: 100%; border-collapse: collapse; font-size: 11px; margin: 6px 0 12px; }
+.tg-reward-table th, .tg-reward-table td { border: 1px solid var(--line-strong); padding: 5px 7px; text-align: left; vertical-align: top; }
+.tg-reward-table th { background: rgba(255,255,255,.04); color: var(--text-dim); font-weight: 700; white-space: nowrap; }
+.tg-reward-table td:first-child { white-space: nowrap; color: var(--eternity, #b388ff); }
+@media (max-width: 700px) { .tg-reward-table { display: block; overflow-x: auto; white-space: nowrap; } }
+
+.tg-piece-poly.tg-overlap { fill: rgba(255, 80, 80, 0.45) !important; stroke: #ff5a5a !important; stroke-width: 2 !important; }
+.tg-piece-poly.tg-selected { stroke: #7cf !important; stroke-width: 2.5 !important; filter: drop-shadow(0 0 4px rgba(120,200,255,.8)); }
+
+/* ★ 2026-10-22：拼装挑战的**缺口提示**（淡红小三角，画在板块下方 ✓）*/
+.tg-missing-cell {
+  fill: rgba(255, 90, 90, 0.22);
+  stroke: rgba(255, 120, 120, 0.55);
+  stroke-width: 0.6;
+  pointer-events: none;
+}
+
+/* ★★★ 2026-10-24（用户：「完成时看不见哪些加成被启动 ⇒ **已启动的底色高亮，但文字要看得见/反色**」）
+   设计：整行淡紫底 + 文字提到最亮 + 首列加粗 ⇒ 在暗底上"点亮"但不糊 ✗ */
+.tg-reward-table tr.is-active > td {
+  background: rgba(179, 136, 255, 0.20);
+  color: #ffffff;
+  font-weight: 600;
+}
+.tg-reward-table tr.is-active > td:first-child {
+  background: rgba(179, 136, 255, 0.34);
+  color: #ffffff;
+  font-weight: 700;
+}
+.tg-reward-table tr.is-active > td:nth-child(3) {
+  color: #f0e6ff;      /* 数值列再亮一层 ✓ */
+}
+
+/* ══════════════════════════════════════════════════════════════
+   空间膨胀（UI 先行）
+   页面骨架：说明 + 双货币 + 挑战/目标 + du 卡片网格
+   ══════════════════════════════════════════════════════════════ */
+#panel-space { --space: #26c6da; }
+.space-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 18px; flex-wrap: wrap; }
+.space-intro { min-width: 280px; flex: 1 1 520px; }
+.space-intro .rule { margin-bottom: 6px; }
+.space-currencies { display: flex; gap: 8px; flex: 0 0 auto; }
+.space-cur { min-width: 150px; padding: 9px 12px; border: 1px solid var(--line-strong); border-radius: var(--radius); background: var(--bg-card); }
+.space-cur-label { display: block; color: var(--text-dim); font-size: 11px; }
+.space-cur-value { display: block; color: var(--space); font-size: 20px; line-height: 1.25; text-shadow: 0 0 7px var(--space); }
+.space-cur-hint { display: block; color: var(--text-faint); font-size: 10px; margin-top: 2px; }
+.space-status-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin: 12px 0 16px; }
+.space-status-card { border: 1px solid var(--line-strong); border-radius: var(--radius); background: var(--bg-card); padding: 10px 12px; }
+.space-status-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.space-status-head h3 { margin: 0; font-size: 14px; }
+.space-badge { color: var(--space); border-color: color-mix(in srgb, var(--space) 45%, var(--line-strong)); }
+.space-kv { color: var(--text-dim); font-size: 12px; margin: 4px 0; }
+.space-kv b { color: var(--text); }
+.space-kv-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 2px 14px; }
+.space-status-line { font-size: 12px; color: var(--text-dim); margin: 6px 0; }
+.space-challenge-btn { width: 100%; margin-top: 6px; }
+.space-progress { height: 7px; border-radius: 99px; background: rgba(255,255,255,.07); overflow: hidden; margin-top: 8px; }
+.space-progress-fill { height: 100%; width: 0; background: var(--space); box-shadow: 0 0 8px var(--space); transition: width .2s linear; }
+.space-section-title { margin: 16px 0 8px; font-size: 15px; color: var(--space); }
+.space-upgrade-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.space-upg { border: 1px solid var(--line-strong); border-radius: var(--radius); background: var(--bg-card); padding: 9px 10px; display: flex; flex-direction: column; gap: 4px; }
+.space-upg--deferred { opacity: .62; border-style: dashed; }
+.space-upg--owned { border-color: color-mix(in srgb, var(--space) 45%, var(--line-strong)); }
+.space-upg-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.space-upg-name { color: var(--text); font-size: 12.5px; }
+.space-upg-lv { color: var(--space); font-size: 11px; white-space: nowrap; }
+.space-upg-slot { color: var(--text-faint); font-size: 10.5px; }
+.space-upg-desc { color: var(--text-dim); font-size: 11.5px; line-height: 1.4; min-height: 32px; }
+.space-upg-meta { display: flex; justify-content: space-between; gap: 8px; font-size: 11px; color: var(--text-faint); flex-wrap: wrap; }
+.space-upg-effect { color: var(--space); }
+.space-upg-btn { width: 100%; margin-top: 2px; font-size: 12px; padding: 5px 8px; }
+.space-footnote { margin-top: 14px; }
+@media (max-width: 760px) {
+  .space-status-row, .space-upgrade-grid { grid-template-columns: 1fr; }
+  .space-currencies { width: 100%; }
+  .space-cur { flex: 1 1 0; }
+}
+/* 空间膨胀：未到 EP 1e1200 时，flyout 入口锁住（仍可见，符合 AD 式锁态） */
+.flyout-item.locked { opacity: .55; cursor: not-allowed; }
+
+/* 对话区：可滚动（长聊天不撑爆页面） */
+.neko-chat { max-height: 420px; overflow-y: auto; padding-right: 4px; }
+.neko-chat::-webkit-scrollbar { width: 8px; }
+.neko-chat::-webkit-scrollbar-thumb { background: var(--line); border-radius: 4px; }
+
+/* ── 猫猫漫游（复用 N.E.K.O 猫资源，页内物理）── */
+.neko-cat-pet-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 55;
+  pointer-events: none;
+  overflow: hidden;
+}
+.neko-cat-pet {
+  position: absolute;
+  pointer-events: auto;
+  cursor: grab;
+  user-select: none;
+  -webkit-user-drag: none;
+  touch-action: none;
+  will-change: left, top, transform;
+  filter: drop-shadow(0 6px 10px rgba(0, 0, 0, 0.25));
+}
+.neko-cat-pet:active { cursor: grabbing; }
+
+/* ── 右上角小提示（存档失败 / 回退安全存档）── */
+#neko-toast-host {
+  position: fixed;
+  top: 12px;
+  right: 12px;
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-width: 360px;
+  pointer-events: none;
+}
+.neko-toast {
+  background: #16161a;
+  border: 1px solid var(--line, #333);
+  border-left: 3px solid #6cf;
+  color: #eee;
+  padding: 10px 14px;
+  border-radius: 8px;
+  font-size: 13px;
+  line-height: 1.45;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.4);
+  animation: neko-toast-in 0.18s ease-out;
+}
+.neko-toast--warn { border-left-color: #f5b942; }
+.neko-toast--error { border-left-color: #ff5c5c; }
+@keyframes neko-toast-in {
+  from { opacity: 0; transform: translateY(-6px); }
+  to { opacity: 1; transform: none; }
+}
