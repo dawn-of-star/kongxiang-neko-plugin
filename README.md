@@ -27,3 +27,8 @@ uv run neko-plugin check kongxiang_incremental
 ```
 
 完整插件市场发布流程见 N.E.K.O 仓库 `docs/zh-CN/plugins/cli.md`。
+
+## License
+
+MIT（见 `LICENSE`）。`static/` 内含《空想增量》游戏本体，同样以 MIT 发布；
+其第三方库 `dist/break_eternity.js` 遵循其原始许可。
