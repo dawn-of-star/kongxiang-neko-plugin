@@ -120,10 +120,10 @@ let nekoBridgeLastPhase = null;
  */
 const nekoActionApi = {
   maxPerTick: NEKO_MAX_ACTIONS_PER_TICK,
-  hasRepeatable: (id) => id in REPEATABLE,
-  hasVoid: (id) => id in VOID_UPGRADES,
-  hasDe: (id) => id in DE_UPGRADES,
-  hasInfinity: (id) => id in INFINITY_UPGRADES,
+  hasRepeatable: (id) => Object.prototype.hasOwnProperty.call(REPEATABLE, id),
+  hasVoid: (id) => Object.prototype.hasOwnProperty.call(VOID_UPGRADES, id),
+  hasDe: (id) => Object.prototype.hasOwnProperty.call(DE_UPGRADES, id),
+  hasInfinity: (id) => Object.prototype.hasOwnProperty.call(INFINITY_UPGRADES, id),
   buyRepeatable,
   buyVoidUpgrade,
   buyDeUpgrade,

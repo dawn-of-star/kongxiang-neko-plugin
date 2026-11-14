@@ -46,6 +46,12 @@ MAX_ATTEMPTS = 3
 POLL_LIMIT_MIN = 1
 POLL_LIMIT_MAX = 16
 DEFAULT_POLL_LIMIT = 8
+ACTION_ID_MAX = 64
+REASON_MAX = 200
+# actions.js 里 buyDarkMatter / buyEpMult 吃 payload.k：null = 买满，1 = 买一个。
+K_PAYLOAD_ACTIONS: frozenset[str] = frozenset({"buyDarkMatter", "buyEpMult"})
+# 这两个状态说明动作已不在队列，页面迟到的回执可以覆盖它们。
+TERMINAL_RESULT_STATUSES: frozenset[str] = frozenset({"expired", "abandoned"})
 
 SNAPSHOT_MAX_BYTES = 16 * 1024
 SNAPSHOT_MAX_LOG = 12
@@ -143,6 +149,11 @@ class ActionQueue:
 
     @property
     def pending(self) -> int:
+        return self.pending_count()
+
+    def pending_count(self) -> int:
+        """读队列长度前先清理过期动作，避免页面没开时队列“假满”。"""
+        self.purge_expired()
         return len(self._actions)
 
     @property
@@ -155,6 +166,12 @@ class ActionQueue:
             return []
         return [dict(item) for item in list(self._results)[-limit:]]
 
+    def purge_expired(self, now: float | None = None) -> int:
+        """把排队超过 TTL 的动作记为 expired 并移除，返回移除数量。"""
+        before = len(self._actions)
+        self._expire_queued(self._now() if now is None else float(now))
+        return before - len(self._actions)
+
     # ── 写入 ────────────────────────────────────────────────
     def enqueue(
         self,
@@ -163,8 +180,10 @@ class ActionQueue:
         max_flag: bool = False,
         reason: str = "",
         confirm: bool = False,
+        on: bool = True,
     ) -> dict[str, Any]:
         """校验并入队；queue_action 与 kongxiang_action 共用这一条路径。"""
+        self.purge_expired()
         kind = str(action_type or "").strip()
         if kind not in ACTION_TYPES:
             return {"queued": False, "error": "unknown_action"}
@@ -174,11 +193,19 @@ class ActionQueue:
             return {"queued": False, "error": "queue_full"}
 
         self._seq += 1
+        payload: dict[str, Any] = {
+            "id": str(action_id or "")[:ACTION_ID_MAX],
+            "max": bool(max_flag),
+        }
+        if kind in K_PAYLOAD_ACTIONS:
+            payload["k"] = None if bool(max_flag) else 1
+        if kind == "setAuto":
+            payload["on"] = bool(on)
         record = {
             "action_id": f"{self._generation}:a{self._seq}",
             "type": kind,
-            "payload": {"id": str(action_id or ""), "max": bool(max_flag)},
-            "reason": str(reason or ""),
+            "payload": payload,
+            "reason": str(reason or "")[:REASON_MAX],
             "queued_at": self._now(),
             "attempts": 0,
             "lease_until": 0.0,
@@ -193,7 +220,7 @@ class ActionQueue:
     def poll(self, limit: int = DEFAULT_POLL_LIMIT) -> dict[str, Any]:
         """领取动作：先清理过期/失效租约，再按 limit 标记租约返回。"""
         now = self._now()
-        self._expire_queued(now)
+        self.purge_expired(now)
         self._recover_leases(now)
 
         max_items = clamp_limit(limit)
@@ -214,7 +241,7 @@ class ActionQueue:
         }
 
     def report(self, action_id: str, status: str = "", reason: str = "") -> dict[str, Any]:
-        """页面回执：按 id 出队并记结果；未知/重复回执不重复追加。"""
+        """页面回执：按 id 出队；迟到/重复回执更新结果而不刷屏。"""
         target = str(action_id or "")
         acked = False
         kept: deque[dict[str, Any]] = deque()
@@ -226,6 +253,8 @@ class ActionQueue:
         if acked:
             self._actions = kept
             self._record(target, str(status or ""), str(reason or ""))
+        else:
+            self._record_late(target, str(status or ""), str(reason or ""))
         return {"ok": True, "received": len(self._results), "acked": acked}
 
     def clear(self) -> None:
@@ -243,6 +272,33 @@ class ActionQueue:
                 "status": status,
                 "reason": reason,
                 "at": self._now(),
+            }
+        )
+
+    def _record_late(self, action_id: str, status: str, reason: str) -> None:
+        """记录页面迟到的回执。
+
+        动作已不在队列（expired/abandoned/插件重启）时不要静默丢弃：没有结果
+        就追加一条并标 ``late=true``；已有结果就在原条目上更新（不重复追加）。
+        已完成动作的重复回执保持原结果不变，避免刷屏。
+        """
+        now = self._now()
+        for item in self._results:
+            if item["action_id"] != action_id:
+                continue
+            if item.get("late") or item["status"] in TERMINAL_RESULT_STATUSES:
+                item["status"] = status
+                item["reason"] = reason
+                item["at"] = now
+                item["late"] = True
+            return
+        self._results.append(
+            {
+                "action_id": action_id,
+                "status": status,
+                "reason": reason,
+                "at": now,
+                "late": True,
             }
         )
 

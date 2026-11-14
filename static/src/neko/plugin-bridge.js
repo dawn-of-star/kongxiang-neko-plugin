@@ -49,7 +49,7 @@ export function detectPluginId(locationLike = window.location) {
  * 把快照裁成可传输形状（只动副本；顺序：log 限 12 条/300 字 → 删 log → 删
  * rates/multipliers → 最小摘要 {schema,t,error:"snapshot_too_large"}）。
  */
-function trimSnapshotForTransport(snapshot) {
+export function trimSnapshotForTransport(snapshot) {
   if (!snapshot || typeof snapshot !== "object") return snapshot;
 
   const fits = (value) => {
@@ -89,7 +89,7 @@ function trimSnapshotForTransport(snapshot) {
  * 动作队列 at-least-once（lease 20s 重投），而购买不是幂等 ⇒ dispatch 前落 in_progress，
  * 重投只补回执、绝不重放。localStorage 不可用（隐私模式/配额/损坏）退回内存 Map，不抛。
  */
-function createExecCache(pluginId) {
+export function createExecCache(pluginId) {
   const storageKey = `neko:exec:${pluginId}:executed`;
   const memory = new Map();
   let persistent = true;
@@ -181,7 +181,7 @@ async function ackCachedAction(action, cached, deps) {
  * 处理一批动作：已执行过的只补回执，其余 **先落 in_progress 再 dispatch**（至多一次）。
  * @returns {Promise<number>} 本批条数（含只补回执的）
  */
-async function processActionBatch(actions, deps) {
+export async function processActionBatch(actions, deps) {
   const { execCache, dispatchActions, reportResult, onError } = deps;
   const seen = new Set();
   const fresh = [];

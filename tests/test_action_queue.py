@@ -79,6 +79,44 @@ def test_poll_returns_action_contract_fields() -> None:
     assert action["lease_until"] == polled["now"] + queue.LEASE_SECONDS
 
 
+def test_k_payload_for_dark_matter_and_ep_mult() -> None:
+    q, _ = make_queue()
+    q.enqueue("buyDarkMatter", action_id="dm", max_flag=True)
+    q.enqueue("buyDarkMatter", action_id="dm", max_flag=False)
+    q.enqueue("buyEpMult", action_id="ep", max_flag=True)
+    q.enqueue("buyEpMult", action_id="ep", max_flag=False)
+    q.enqueue("buyTrap", max_flag=True)
+
+    actions = q.poll(16)["actions"]
+    assert actions[0]["payload"]["k"] is None
+    assert actions[1]["payload"]["k"] == 1
+    assert actions[2]["payload"]["k"] is None
+    assert actions[3]["payload"]["k"] == 1
+    # 其它动作不补 k
+    assert "k" not in actions[4]["payload"]
+
+
+def test_setauto_on_payload_and_other_actions_ignore_on() -> None:
+    q, _ = make_queue()
+    q.enqueue("setAuto", action_id="autoPhase", on=False)
+    q.enqueue("setAuto", action_id="autoVacuum")
+    q.enqueue("buyTrap", on=False)
+
+    actions = q.poll(16)["actions"]
+    assert actions[0]["payload"]["on"] is False
+    assert actions[1]["payload"]["on"] is True
+    assert "on" not in actions[2]["payload"]
+
+
+def test_id_and_reason_are_truncated_on_enqueue() -> None:
+    q, _ = make_queue()
+    q.enqueue("buyRepeatable", action_id="i" * 100, reason="r" * 300)
+
+    action = q.poll(8)["actions"][0]
+    assert len(action["payload"]["id"]) == queue.ACTION_ID_MAX
+    assert len(action["reason"]) == queue.REASON_MAX
+
+
 def test_unknown_action_type_is_rejected() -> None:
     q, _ = make_queue()
     assert q.enqueue("rm -rf") == {"queued": False, "error": "unknown_action"}
@@ -116,6 +154,61 @@ def test_queued_action_expires_after_ttl() -> None:
     results = q.recent_results(5)
     assert [(item["action_id"], item["status"]) for item in results] == [(action_id, "expired")]
     assert results[0]["reason"] == "queued_too_long"
+
+
+def test_purge_expired_works_without_poll() -> None:
+    q, clock = make_queue()
+    assert q.enqueue("buyTrap")["queued"] is True
+
+    clock.advance(queue.QUEUE_TTL_SECONDS + 1)
+    assert q.purge_expired() == 1
+    assert q.pending_count() == 0
+    assert q.recent_results(1)[0]["status"] == "expired"
+
+    # pending 属性也会先 purge，页面没开时不会一直“假满”。
+    q.enqueue("buyTrap")
+    clock.advance(queue.QUEUE_TTL_SECONDS + 1)
+    assert q.pending == 0
+    assert q.result_count == 2
+
+    # purge 的参数 now 可显式传入，便于测试/回放。
+    q.enqueue("buyTrap")
+    assert q.purge_expired(now=1e18) == 1
+    assert q.pending_count() == 0
+
+
+def test_enqueue_purges_expired_before_queue_full_check() -> None:
+    q, clock = make_queue()
+    for _ in range(queue.QUEUE_LIMIT):
+        assert q.enqueue("buyTrap")["queued"] is True
+    assert q.enqueue("buyTrap") == {"queued": False, "error": "queue_full"}
+
+    clock.advance(queue.QUEUE_TTL_SECONDS + 1)
+    # 过期动作先被清掉，队列不再“假满”。
+    assert q.enqueue("buyTrap")["queued"] is True
+    assert q.pending == 1
+    assert q.result_count == queue.QUEUE_LIMIT
+
+
+def test_late_report_updates_expired_result() -> None:
+    q, clock = make_queue()
+    action_id = q.enqueue("buyTrap")["action_id"]
+
+    clock.advance(queue.QUEUE_TTL_SECONDS + 1)
+    q.poll(8)  # 产生 expired 结果
+    assert q.recent_results(1)[0]["status"] == "expired"
+
+    late = q.report(action_id, "ok", "page came back")
+    assert late == {"ok": True, "received": 1, "acked": False}
+    assert q.result_count == 1
+    item = q.recent_results(1)[0]
+    assert (item["status"], item["reason"], item["late"]) == ("ok", "page came back", True)
+
+    # 同一个 action_id 的迟到回执只更新，不重复追加。
+    q.report(action_id, "rejected", "still late")
+    assert q.result_count == 1
+    item = q.recent_results(1)[0]
+    assert (item["status"], item["reason"], item["late"]) == ("rejected", "still late", True)
 
 
 def test_lease_expiry_redelivers_then_abandons() -> None:
@@ -158,10 +251,21 @@ def test_report_acks_known_action_once() -> None:
     assert q.result_count == 1
 
 
-def test_report_unknown_action_is_not_recorded() -> None:
+def test_report_unknown_action_is_recorded_late() -> None:
     q, _ = make_queue()
-    assert q.report("nope:a1", "ok") == {"ok": True, "received": 0, "acked": False}
-    assert q.result_count == 0
+    assert q.report("nope:a1", "ok") == {"ok": True, "received": 1, "acked": False}
+    assert q.result_count == 1
+    item = q.recent_results(1)[0]
+    assert (item["action_id"], item["status"], item["late"]) == ("nope:a1", "ok", True)
+
+    # 同一个 id 再回报一次：更新原结果，不重复追加。
+    assert q.report("nope:a1", "rejected", "changed") == {
+        "ok": True,
+        "received": 1,
+        "acked": False,
+    }
+    item = q.recent_results(1)[0]
+    assert (item["status"], item["reason"], item["late"]) == ("rejected", "changed", True)
 
 
 def test_recent_results_returns_last_five() -> None:
