@@ -32,3 +32,12 @@ uv run neko-plugin check kongxiang_incremental
 
 MIT（见 `LICENSE`）。`static/` 内含《空想增量》游戏本体，同样以 MIT 发布；
 其第三方库 `dist/break_eternity.js` 遵循其原始许可。
+
+## 实测记录（2026-11-14）
+
+- 插件 UI：`/plugin/kongxiang_incremental/ui/` 200；main.js / css / esm MIME 正确。
+- 动作闭环 A（手动）：`queue_action` → `poll_actions` → 页面执行（计数频率 → 8 级）→ `report_result`。
+- 动作闭环 B（真模型）：原生聊天「帮我升一下计数频率」→ Main 调用 `kongxiang_action`
+  （11:25:14 回调 HTTP 200）→ 插件队列 → 页面执行 → `results=2`，
+  页面快照 `multipliers.countFreq = 1.6`（= 8 级 × 1.075）。
+- 结论：聊天 → 模型调工具 → 插件排队 → 页面执行 → 回执，全链路打通。

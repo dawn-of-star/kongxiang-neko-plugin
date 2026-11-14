@@ -1,0 +1,41 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "N.E.K.O: check kongxiang_incremental",
+      "type": "shell",
+      "command": "uv run neko-plugin check kongxiang_incremental",
+      "options": {
+        "cwd": "${config:nekoPlugin.repoRoot}"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "N.E.K.O: sync kongxiang_incremental",
+      "type": "shell",
+      "command": "uv run neko-plugin sync kongxiang_incremental --clean",
+      "options": {
+        "cwd": "${config:nekoPlugin.repoRoot}"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "N.E.K.O: check -r kongxiang_incremental",
+      "type": "shell",
+      "command": "uv run neko-plugin check -r kongxiang_incremental",
+      "options": {
+        "cwd": "${config:nekoPlugin.repoRoot}"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "N.E.K.O: build kongxiang_incremental",
+      "type": "shell",
+      "command": "uv run neko-plugin build kongxiang_incremental",
+      "options": {
+        "cwd": "${config:nekoPlugin.repoRoot}"
+      },
+      "problemMatcher": []
+    }
+  ]
+}
