@@ -60,7 +60,7 @@ Release 页面：<https://github.com/dawn-of-star/kongxiang-neko-plugin/releases
 └──────────────────────────────┬───────────────────────────────────┘
                                │ 宿主 Run 协议（同源 HTTP，/runs）
 ┌──────────────────────────────▼───────────────────────────────────┐
-│ KongxiangPlugin（__init__.py + queue.py，运行在插件进程内）      │
+│ KongxiangPlugin（__init__.py + action_queue.py，运行在插件进程内）      │
 │  · 内存快照（≤16KB / 12 条日志）                                  │
 │  · 动作队列（白名单 / lease 20s / TTL 120s / 最多 3 次）          │
 │  · 5 个 plugin_entry + 2 个 llm_tool                              │
@@ -133,7 +133,7 @@ Release 页面：<https://github.com/dawn-of-star/kongxiang-neko-plugin/releases
 kongxiang_incremental/
 ├── plugin.toml          # 插件清单（SDK 0.1.x，auto_start）
 ├── __init__.py          # SDK 适配：静态 UI、5 个 plugin_entry、2 个 llm_tool
-├── queue.py             # 纯队列逻辑：白名单、租约、TTL、回执、快照裁剪
+├── action_queue.py             # 纯队列逻辑：白名单、租约、TTL、回执、快照裁剪
 ├── static/              # 游戏本体（由 sync-static.mjs 生成，勿手改）
 │   ├── index.html
 │   ├── css/

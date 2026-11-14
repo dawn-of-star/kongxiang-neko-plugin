@@ -11,7 +11,7 @@ _MODULE_NAME = "kongxiang_queue_under_test"
 
 
 def _load_queue_module():
-    spec = importlib.util.spec_from_file_location(_MODULE_NAME, _PLUGIN_ROOT / "queue.py")
+    spec = importlib.util.spec_from_file_location(_MODULE_NAME, _PLUGIN_ROOT / "action_queue.py")
     assert spec is not None and spec.loader is not None
     module = importlib.util.module_from_spec(spec)
     sys.modules[_MODULE_NAME] = module
