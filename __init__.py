@@ -183,7 +183,8 @@ class KongxiangPlugin(NekoPluginBase):
         name="kongxiang_action",
         description=(
             "给《空想增量》排一个操作，由游戏页执行。"
-            "type 可用：buyRepeatable / buyTrap / buyVoidUpgrade / buyDeUpgrade / "
+            "type 可用：buyRepeatable（id: particleBoost=计数频率 / matterBoost=物质速率 / "
+            "entropyCoeff=熵凝聚；max=true 一次买满）/ buyTrap / buyVoidUpgrade / buyDeUpgrade / "
             "buyInfinityUpgrade / buyIpDoubleMax / buyEpMult / buyZpeEngineLevel / "
             "buyDarkMatter / doBigCrunch / doEternity。"
         ),
